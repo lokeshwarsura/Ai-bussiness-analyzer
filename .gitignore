@@ -1,0 +1,33 @@
+# Node dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Python caches & virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.ipynb_checkpoints/
+.pytest_cache/
+
+# Databases & local state
+backend/app/platform.db
+.sqlite
+*.db
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Exclude massive unused raw datasets
+online details/
+retail transcript/
+

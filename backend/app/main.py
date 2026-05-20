@@ -175,6 +175,123 @@ def get_excel_report():
         raise HTTPException(status_code=500, detail=f"Excel generation failed: {e}")
 
 # 10. Dynamic CSV Upload Endpoint
+@app.get("/api/enterprise/template/{dataset_type}")
+def get_enterprise_template(dataset_type: str):
+    import io
+    from fastapi.responses import StreamingResponse
+    
+    templates = {
+        "sales": (
+            "row_id,order_id,order_date,ship_mode,segment,country,city,state,region,product_id,category,sub_category,product_name,sales,quantity,discount,profit\n"
+            "1,CA-2016-152156,2016-11-08,Second Class,Consumer,United States,Henderson,Kentucky,South,FUR-BO-10001798,Furniture,Bookcases,Bush Somerset Collection Bookcase,261.96,2,0,41.91\n"
+            "2,CA-2016-152156,2016-11-08,Second Class,Consumer,United States,Henderson,Kentucky,South,FUR-CH-10000454,Furniture,Chairs,Hon Deluxe Fabric Upholstered Stack Chair,731.94,3,0,219.58"
+        ),
+        "marketing": (
+            "id,year_birth,education,marital_status,income,kidhome,teenhome,dt_customer,recency,mntwines,mntfruits,mntmeatproducts,mntfishproducts,mntsweetproducts,mntgoldprods,numdealspurchases,numwebpurchases,numcatalogpurchases,numstorepurchases,numwebvisitsmonth\n"
+            "5524,1957,Graduation,Single,58138,0,0,2012-09-04,58,635,88,546,172,88,88,3,8,10,4,7\n"
+            "2174,1954,Graduation,Together,46344,1,1,2014-03-08,38,11,1,6,2,1,6,2,1,1,2,5"
+        ),
+        "churn": (
+            "customerid,gender,seniorcitizen,partner,dependents,tenure,phoneservice,internetservice,contract,monthlycharges,totalcharges,churn\n"
+            "7590-VHVEG,Female,0,Yes,No,1,No,DSL,Month-to-month,29.85,29.85,No\n"
+            "5575-GNVDE,Male,0,No,No,34,Yes,DSL,One year,56.95,1889.5,No"
+        ),
+        "forecasting": (
+            "store,date,weekly_sales,holiday_flag,temperature,fuel_price,cpi,unemployment\n"
+            "1,05-02-2010,1643690.9,0,42.31,2.572,211.096358,8.106\n"
+            "1,12-02-2010,1641957.44,1,38.51,2.548,211.24217,8.106"
+        ),
+        "campaigns": (
+            "campaign_id,clicks,impressions,conversions,spent,channel,acquisition_cost\n"
+            "916,80,8000,8,140.5,Meta,17.56\n"
+            "936,120,12000,15,220.0,Google,22.40"
+        ),
+        "reviews": (
+            "product_id,product_name,category,discounted_price,actual_price,discount_percentage,rating,rating_count,about_product,user_id,user_name,review_id,review_title,review_content,img_link\n"
+            "B07JW9H4J1,SanDisk Flash Drive 32GB,Computers|Accessories,349,650,46%,4.3,25000,Sandisk blade high-speed,AG3D6,User1,R1,Good,Fast drive,https://example.com/sandisk.jpg\n"
+            "B098NS,Logitech Wireless Mouse M170,Computers|Accessories,599,895,33%,4.1,8900,Logitech durable wireless,AH67,User2,R2,Decent,Works well,https://example.com/logitech.jpg"
+        )
+    }
+    
+    if dataset_type not in templates:
+        raise HTTPException(status_code=400, detail=f"Invalid dataset template type '{dataset_type}'.")
+        
+    csv_data = templates[dataset_type]
+    stream = io.StringIO(csv_data)
+    response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
+    response.headers["Content-Disposition"] = f"attachment; filename=template_{dataset_type}.csv"
+    return response
+
+@app.post("/api/enterprise/upload/{dataset_type}")
+async def upload_enterprise_dataset(dataset_type: str, file: UploadFile = File(...)):
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only CSV files (.csv) are accepted.")
+        
+    table_mappings = {
+        "sales": "superstore",
+        "marketing": "customer_campaign",
+        "churn": "churn_data",
+        "forecasting": "walmart_sales",
+        "campaigns": "social_campaigns",
+        "reviews": "amazon_products"
+    }
+    
+    if dataset_type not in table_mappings:
+        raise HTTPException(status_code=400, detail=f"Invalid dataset type '{dataset_type}'.")
+        
+    try:
+        # Read CSV
+        df = pd.read_csv(file.file)
+        
+        # Clean column names as in our standard database seeder
+        from .db import clean_column_names
+        df = clean_column_names(df)
+        
+        # Specific cleaning per dataset
+        if dataset_type == "marketing" and "income" in df.columns:
+            df["income"] = df["income"].fillna(df["income"].median())
+            
+        elif dataset_type == "churn":
+            if "totalcharges" in df.columns:
+                df["totalcharges"] = pd.to_numeric(df["totalcharges"].astype(str).str.strip(), errors="coerce")
+                df["totalcharges"] = df["totalcharges"].fillna(0.0)
+            # Reset the Random Forest cached model to trigger re-training
+            from .services import churn
+            churn._churn_model = None
+            churn._churn_features = None
+            churn._encoded_cols = None
+            
+        elif dataset_type == "campaigns" and "acquisition_cost" in df.columns:
+            df["acquisition_cost"] = df["acquisition_cost"].astype(str).str.replace("$", "", regex=False).str.replace(",", "", regex=False)
+            df["acquisition_cost"] = pd.to_numeric(df["acquisition_cost"], errors="coerce").fillna(0.0)
+            
+        elif dataset_type == "reviews":
+            for col in ["discounted_price", "actual_price"]:
+                if col in df.columns:
+                    df[col] = df[col].astype(str).str.replace("₹", "", regex=False).str.replace(",", "", regex=False).str.strip()
+                    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0.0)
+            if "rating" in df.columns:
+                df["rating"] = pd.to_numeric(df["rating"].astype(str).str.strip(), errors="coerce").fillna(4.0)
+            if "rating_count" in df.columns:
+                df["rating_count"] = df["rating_count"].astype(str).str.replace(",", "", regex=False)
+                df["rating_count"] = pd.to_numeric(df["rating_count"], errors="coerce").fillna(0.0)
+                
+        # Write to SQLite
+        conn = get_db_connection()
+        table_name = table_mappings[dataset_type]
+        df.to_sql(table_name, conn, if_exists="replace", index=False)
+        conn.close()
+        
+        return {
+            "success": True,
+            "filename": file.filename,
+            "rows": len(df),
+            "columns": df.columns.tolist(),
+            "message": f"Successfully loaded your custom {dataset_type.capitalize()} dataset containing {len(df)} records into the live database! Analytics models are re-initializing."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process and seed your custom dataset: {str(e)}")
+
 @app.post("/api/upload")
 async def upload_csv_file(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
@@ -204,3 +321,4 @@ async def upload_csv_file(file: UploadFile = File(...)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File processing error: {e}")
+

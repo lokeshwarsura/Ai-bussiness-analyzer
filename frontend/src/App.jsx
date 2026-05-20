@@ -47,6 +47,32 @@ export default function App() {
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadResult, setUploadResult] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [enterpriseUploads, setEnterpriseUploads] = useState({});
+  const [enterpriseLoadings, setEnterpriseLoadings] = useState({});
+
+  const handleEnterpriseUpload = async (type, file) => {
+    if (!file) return;
+    setEnterpriseLoadings(prev => ({ ...prev, [type]: true }));
+    setEnterpriseUploads(prev => ({ ...prev, [type]: null }));
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch(`${API_BASE}/enterprise/upload/${type}`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEnterpriseUploads(prev => ({ ...prev, [type]: data }));
+      } else {
+        alert(data.detail || `Upload failed for ${type} dataset.`);
+      }
+    } catch (err) {
+      alert(`Connection failed uploading ${type} dataset.`);
+    } finally {
+      setEnterpriseLoadings(prev => ({ ...prev, [type]: false }));
+    }
+  };
 
   // Chatbot Drawer State
   const [chatOpen, setChatOpen] = useState(false);
@@ -280,7 +306,7 @@ export default function App() {
             <Lightbulb size={18} /> Business Suggestions
           </div>
           <div className={`nav-item ${activeTab === 'upload' ? 'active' : ''}`} onClick={() => setActiveTab('upload')}>
-            <Upload size={18} /> Custom Sheet Analysis
+            <Layers size={18} /> Enterprise Seeder
           </div>
         </nav>
 
@@ -949,51 +975,133 @@ export default function App() {
               </div>
             )}
 
-            {/* 8. FILE UPLOAD TAB */}
+            {/* 8. FILE UPLOAD TAB / ENTERPRISE SEEDER */}
             {activeTab === 'upload' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                <div className="glass-card" style={{ padding: 24 }}>
-                  <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Dynamic Dataset Analytics</h3>
-                  <p style={{ color: '#475569', fontSize: 13, marginBottom: 20 }}>Upload any custom business transaction or client sheet (CSV) to run real-time structural analysis and summary statistics.</p>
-                  
-                  <form onSubmit={handleFileUpload} style={{ border: '2px dashed rgba(99, 102, 241, 0.2)', padding: 40, borderRadius: 12, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 15 }}>
-                    <Upload size={48} color="#4f46e5" style={{ marginBottom: 10 }} />
-                    <input 
-                      type="file" 
-                      accept=".csv" 
-                      onChange={(e) => setUploadFile(e.target.files[0])}
-                      style={{ color: '#475569', fontSize: 14 }}
-                    />
-                    <button type="submit" className="btn-primary" disabled={!uploadFile || uploadLoading}>
-                      {uploadLoading ? <Loader2 className="animate-spin" size={16} /> : "Upload and Analyze"}
-                    </button>
-                  </form>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                {/* Header card with Sync Action */}
+                <div className="glass-card" style={{ padding: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
+                  <div style={{ flex: 1, minWidth: 300 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                      <Layers size={22} color="#4f46e5" />
+                      <h3 style={{ fontSize: 20, fontWeight: 800 }}>Enterprise Data Seeder & Engine Rebuilder</h3>
+                    </div>
+                    <p style={{ color: '#475569', fontSize: 13, margin: 0 }}>
+                      Provide your company's own CSV datasets to customize and retrain all analytical systems. Download our clean schemas, drop your operational tables, and trigger an instant recalculation.
+                    </p>
+                  </div>
+                  <button 
+                    className="btn-primary animate-pulse" 
+                    onClick={async () => {
+                      await fetchAllData();
+                      alert("Operational metrics and machine learning models successfully rebuilt and synchronized with your uploaded datasets!");
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px', fontSize: 14, fontWeight: 700 }}
+                  >
+                    <RefreshCw size={16} /> Rebuild & Sync All Models
+                  </button>
+                </div>
 
-                  {uploadResult && (
-                    <div className="glass-card animate-fade-in" style={{ padding: 20, marginTop: 24, background: 'rgba(0,0,0,0.02)' }}>
-                      <h4 style={{ fontSize: 16, fontWeight: 700, color: '#059669', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <CheckCircle2 size={18} /> {uploadResult.message}
-                      </h4>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 15, fontSize: 13, color: '#475569' }}>
-                        <div>Rows: <strong style={{ color: '#0f172a' }}>{uploadResult.rows}</strong></div>
-                        <div>Total Columns: <strong style={{ color: '#0f172a' }}>{uploadResult.columns.length}</strong></div>
-                      </div>
-                      
-                      <div style={{ marginTop: 20 }}>
-                        <span style={{ fontSize: 13, color: '#475569', display: 'block', marginBottom: 8 }}>Numeric Variables Descriptive Stats:</span>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-                          {Object.entries(uploadResult.numeric_columns_summary).map(([name, stats]) => (
-                            <div key={name} style={{ padding: 12, background: 'rgba(99,102,241,0.04)', borderRadius: 6 }}>
-                              <span style={{ fontSize: 12, fontWeight: 700, display: 'block', color: '#4f46e5' }}>{name}</span>
-                              <span style={{ fontSize: 11, display: 'block', color: '#0f172a' }}>Mean: {stats.mean.toFixed(2)}</span>
-                              <span style={{ fontSize: 11, display: 'block', color: '#0f172a' }}>Min: {stats.min.toFixed(2)}</span>
-                              <span style={{ fontSize: 11, display: 'block', color: '#0f172a' }}>Max: {stats.max.toFixed(2)}</span>
+                {/* Grid of 6 seeding systems */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 24 }}>
+                  {[
+                    {
+                      id: "sales",
+                      title: "1. Superstore Sales Transactions",
+                      desc: "Drives Core Dashboard revenues, region margins, categories, and subcategories matrices.",
+                      icon: <BarChart3 size={24} color="#6366f1" />
+                    },
+                    {
+                      id: "marketing",
+                      title: "2. Customer Campaign Demographics",
+                      desc: "Feeds K-Means demographics clustering, custom profile segments, and PCA vector layouts.",
+                      icon: <Users size={24} color="#a855f7" />
+                    },
+                    {
+                      id: "churn",
+                      title: "3. Subscriber Churn Telemetry",
+                      desc: "Trains the Random Forest Churn Risk Classifier, scoring customer retention probabilities.",
+                      icon: <ShieldAlert size={24} color="#ec4899" />
+                    },
+                    {
+                      id: "forecasting",
+                      title: "4. Weekly Retail Sales Data",
+                      desc: "Trains 12-week ARIMA(1,1,1) seasonal forecasting models with 95% confidence bands.",
+                      icon: <TrendingUp size={24} color="#3b82f6" />
+                    },
+                    {
+                      id: "campaigns",
+                      title: "5. Social Ad Campaigns",
+                      desc: "Powers digital campaign matrices comparing clicks, spend, and ROIs across platforms.",
+                      icon: <Megaphone size={24} color="#f59e0b" />
+                    },
+                    {
+                      id: "reviews",
+                      title: "6. Product Reviews & Recommendations",
+                      desc: "Generates cosine catalog similarities, TextBlob sentiment scores, and word complaint clouds.",
+                      icon: <Heart size={24} color="#10b981" />
+                    }
+                  ].map((sys) => {
+                    const result = enterpriseUploads[sys.id];
+                    const loading = enterpriseLoadings[sys.id];
+                    return (
+                      <div key={sys.id} className="glass-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ background: 'rgba(99, 102, 241, 0.08)', padding: 10, borderRadius: 10 }}>
+                              {sys.icon}
                             </div>
-                          ))}
+                            <h4 style={{ fontSize: 15, fontWeight: 700 }}>{sys.title}</h4>
+                          </div>
+                          <p style={{ fontSize: 12, color: '#475569', lineHeight: '1.4', margin: 0 }}>{sys.desc}</p>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {/* Template Download Link */}
+                          <a 
+                            href={`${API_BASE}/enterprise/template/${sys.id}`} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            style={{ fontSize: 11, color: '#4f46e5', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
+                          >
+                            <FileDown size={14} /> Download Sample Schema CSV
+                          </a>
+
+                          {/* Seeding Upload Zone */}
+                          <div style={{ border: '1px dashed rgba(0,0,0,0.1)', padding: 15, borderRadius: 8, textAlign: 'center', background: 'rgba(0,0,0,0.01)' }}>
+                            <input 
+                              type="file" 
+                              accept=".csv" 
+                              onChange={(e) => handleEnterpriseUpload(sys.id, e.target.files[0])}
+                              style={{ display: 'none' }}
+                              id={`upload-file-${sys.id}`}
+                              disabled={loading}
+                            />
+                            <label 
+                              htmlFor={`upload-file-${sys.id}`}
+                              style={{ fontSize: 12, color: '#475569', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                            >
+                              {loading ? (
+                                <Loader2 className="animate-spin" size={14} />
+                              ) : (
+                                <Upload size={14} color="#4f46e5" />
+                              )}
+                              {loading ? "Uploading & Retraining..." : "Upload Company CSV"}
+                            </label>
+                          </div>
+
+                          {/* Success Status Capsule */}
+                          {result && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(16, 185, 129, 0.08)', padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(16, 185, 129, 0.15)' }}>
+                              <CheckCircle2 size={14} color="#059669" />
+                              <span style={{ fontSize: 11, color: '#059669', fontWeight: 600, textAlign: 'left' }}>
+                                {result.rows} rows seeded successfully!
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               </div>
             )}

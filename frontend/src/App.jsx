@@ -23,6 +23,17 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [serverHealthy, setServerHealthy] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Interactive background cursor tracking
+  const [mousePos, setMousePos] = useState({ x: -200, y: -200 });
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      setMousePos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
   
   // Data States
   const [dashboardData, setDashboardData] = useState(null);
@@ -269,6 +280,17 @@ export default function App() {
 
   return (
     <div className="dashboard-layout">
+      {/* Interactive Reactive Background Layer */}
+      <div className="reactive-bg-container">
+        <div className="glow-orb glow-orb-1"></div>
+        <div className="glow-orb glow-orb-2"></div>
+        <div className="glow-orb glow-orb-3"></div>
+        <div 
+          className="glow-orb-interactive"
+          style={{ left: mousePos.x, top: mousePos.y }}
+        ></div>
+      </div>
+
       {/* SIDEBAR NAVIGATION */}
       <aside style={{ background: 'rgba(255, 255, 255, 0.75)', backdropFilter: 'blur(16px)', borderRight: '1px solid rgba(0, 0, 0, 0.05)', padding: 24, display: 'flex', flexDirection: 'column', gap: 30 }}>
         <div>

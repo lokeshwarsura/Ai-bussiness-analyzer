@@ -40,7 +40,7 @@
 
 body {
   margin: 0;
-  background: radial-gradient(circle at 50% 0%, #eef2ff 0%, #f8fafc 80%);
+  background: transparent;
   min-height: 100vh;
   overflow-x: hidden;
 }
@@ -238,3 +238,84 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Dynamic glowing background meshes */
+.reactive-bg-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -2;
+  background: radial-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(130px);
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+.glow-orb-1 {
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, #818cf8 0%, #6366f1 100%);
+  top: -100px;
+  left: -100px;
+  animation: float-orb-1 25s infinite alternate ease-in-out;
+}
+
+.glow-orb-2 {
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle, #c084fc 0%, #a855f7 100%);
+  bottom: -150px;
+  right: -100px;
+  animation: float-orb-2 30s infinite alternate ease-in-out;
+}
+
+.glow-orb-3 {
+  width: 450px;
+  height: 450px;
+  background: radial-gradient(circle, #34d399 0%, #10b981 100%);
+  top: 35%;
+  left: 25%;
+  animation: float-orb-3 22s infinite alternate ease-in-out;
+}
+
+/* Mouse tracker interactive glowing halo */
+.glow-orb-interactive {
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, rgba(168, 85, 247, 0.12) 100%);
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(95px);
+  pointer-events: none;
+  z-index: -1;
+  transform: translate(-50%, -50%);
+  transition: left 0.15s cubic-bezier(0.1, 0.8, 0.2, 1), top 0.15s cubic-bezier(0.1, 0.8, 0.2, 1);
+}
+
+@keyframes float-orb-1 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(140px, 80px) scale(1.15); }
+  100% { transform: translate(-60px, 110px) scale(0.9); }
+}
+
+@keyframes float-orb-2 {
+  0% { transform: translate(0, 0) scale(1.08); }
+  50% { transform: translate(-90px, -110px) scale(0.88); }
+  100% { transform: translate(70px, 60px) scale(1.02); }
+}
+
+@keyframes float-orb-3 {
+  0% { transform: translate(0, 0) scale(0.92); }
+  50% { transform: translate(70px, 140px) scale(1.12); }
+  100% { transform: translate(-100px, -70px) scale(0.95); }
+}
+

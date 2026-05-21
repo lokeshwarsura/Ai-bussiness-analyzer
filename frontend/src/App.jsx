@@ -569,7 +569,11 @@ export default function App() {
                             r="5" 
                             fill={color} 
                             opacity="0.85"
-                            style={{ transition: 'all 0.2s' }}
+                            className="segment-particle"
+                            style={{ 
+                              animationDelay: `${(idx * 0.08) % 4}s`,
+                              transition: 'all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)' 
+                            }}
                           >
                             <title>{`Income: $${pt.income.toLocaleString()}\nSpending: $${pt.total_spending.toLocaleString()}\nGroup: ${pt.segment_name}`}</title>
                           </circle>

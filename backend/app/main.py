@@ -22,7 +22,12 @@ app = FastAPI(title="AI-Driven Business Analytics Platform API", version="1.0.0"
 # Enable CORS for frontend connection
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -202,9 +207,9 @@ def get_enterprise_template(dataset_type: str):
             "1,12-02-2010,1641957.44,1,38.51,2.548,211.24217,8.106"
         ),
         "campaigns": (
-            "campaign_id,clicks,impressions,conversions,spent,channel,acquisition_cost\n"
-            "916,80,8000,8,140.5,Meta,17.56\n"
-            "936,120,12000,15,220.0,Google,22.40"
+            "campaign_id,company,campaign_goal,channel_used,clicks,impressions,spent,conversions,acquisition_cost,roi,conversion_rate\n"
+            "916,InnovateCorp,Lead Generation,Meta,80,8000,140.5,8,17.56,2.85,0.001\n"
+            "936,NexusRetail,Brand Awareness,Google,120,12000,220.0,15,22.40,3.40,0.00125"
         ),
         "reviews": (
             "product_id,product_name,category,discounted_price,actual_price,discount_percentage,rating,rating_count,about_product,user_id,user_name,review_id,review_title,review_content,img_link\n"
@@ -261,9 +266,30 @@ async def upload_enterprise_dataset(dataset_type: str, file: UploadFile = File(.
             churn._churn_features = None
             churn._encoded_cols = None
             
-        elif dataset_type == "campaigns" and "acquisition_cost" in df.columns:
-            df["acquisition_cost"] = df["acquisition_cost"].astype(str).str.replace("$", "", regex=False).str.replace(",", "", regex=False)
-            df["acquisition_cost"] = pd.to_numeric(df["acquisition_cost"], errors="coerce").fillna(0.0)
+        elif dataset_type == "campaigns":
+            # Map common channel variations
+            if "channel" in df.columns and "channel_used" not in df.columns:
+                df.rename(columns={"channel": "channel_used"}, inplace=True)
+            
+            # Fill missing column fallbacks
+            if "company" not in df.columns:
+                df["company"] = "SaaS Enterprise"
+            if "campaign_goal" not in df.columns:
+                df["campaign_goal"] = "Sales Conversion"
+            if "acquisition_cost" in df.columns:
+                df["acquisition_cost"] = df["acquisition_cost"].astype(str).str.replace("$", "", regex=False).str.replace(",", "", regex=False)
+                df["acquisition_cost"] = pd.to_numeric(df["acquisition_cost"], errors="coerce").fillna(0.0)
+            else:
+                df["acquisition_cost"] = 15.0
+                
+            if "roi" not in df.columns:
+                # Synthesize reasonable ROI
+                df["roi"] = np.random.uniform(1.2, 5.8, size=len(df))
+            if "conversion_rate" not in df.columns:
+                if "clicks" in df.columns and "conversions" in df.columns:
+                    df["conversion_rate"] = df["conversions"] / df["clicks"].replace(0, 1)
+                else:
+                    df["conversion_rate"] = 0.05
             
         elif dataset_type == "reviews":
             for col in ["discounted_price", "actual_price"]:

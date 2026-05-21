@@ -319,3 +319,24 @@ body {
   100% { transform: translate(-100px, -70px) scale(0.95); }
 }
 
+/* Floating scatter plot coordinate particles */
+@keyframes float-particle {
+  0% { transform: translate(0, 0); }
+  33% { transform: translate(1px, -1.5px); }
+  66% { transform: translate(-1px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+.segment-particle {
+  transform-origin: center;
+  animation: float-particle 4s infinite ease-in-out;
+}
+
+.segment-particle:hover {
+  animation-play-state: paused;
+  transform: scale(2);
+  opacity: 1 !important;
+  cursor: pointer;
+}
+
+
